@@ -414,6 +414,53 @@ function ResetModal({ onConfirm, onCancel }) {
   );
 }
 
+const ADMIN_PIN = "7311";
+
+// ── PIN MODAL ─────────────────────────────────────────────────────────────────
+function PinModal({ onUnlock, onClose }) {
+  const [digits, setDigits] = React.useState("");
+  const [error, setError]   = React.useState(false);
+
+  const press = (d) => {
+    if (digits.length >= 4) return;
+    const next = digits + d;
+    setDigits(next);
+    setError(false);
+    if (next.length === 4) {
+      if (next === ADMIN_PIN) {
+        try { sessionStorage.setItem("wc_admin","1"); } catch {}
+        onUnlock();
+      } else {
+        setTimeout(() => { setDigits(""); setError(true); }, 400);
+      }
+    }
+  };
+
+  const del = () => setDigits(d => d.slice(0,-1));
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20,zIndex:3000}}>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,color:"#C9A84C",letterSpacing:3}}>🔐 ADMIN PIN</div>
+      <div style={{color:"#666",fontSize:13}}>Enter your 4-digit PIN to manage the sweepstakes</div>
+      <div style={{display:"flex",gap:14}}>
+        {[0,1,2,3].map(i=>(
+          <div key={i} style={{width:16,height:16,borderRadius:"50%",background:digits.length>i?(error?"#d55b5b":"#C9A84C"):"#222",border:"2px solid",borderColor:digits.length>i?(error?"#d55b5b":"#C9A84C"):"#444",transition:"all 0.15s"}}/>
+        ))}
+      </div>
+      {error && <div style={{color:"#d55b5b",fontSize:13}}>Incorrect PIN — try again</div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,68px)",gap:8}}>
+        {[1,2,3,4,5,6,7,8,9,"",0,"X"].map((k,i)=>(
+          <button key={i} onClick={()=>k==="X"?del():k!==""?press(String(k)):null}
+            style={{height:68,borderRadius:10,border:"none",background:k==="X"?"#1a1a1a":"#161616",color:k==="X"?"#888":"#fff",fontSize:k==="X"?16:22,fontWeight:600,cursor:k===""?"default":"pointer",opacity:k===""?0:1}}>
+            {k==="X"?"⌫":k}
+          </button>
+        ))}
+      </div>
+      <button onClick={onClose} style={{color:"#444",background:"none",border:"none",cursor:"pointer",fontSize:13,marginTop:4}}>Cancel — view only</button>
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [state, setState]           = useState(() => loadState());
@@ -423,6 +470,8 @@ export default function App() {
   const [fixModal, setFixModal]     = useState(null);
   const [fixFilter, setFixFilter]   = useState("all");
   const [grpFilter, setGrpFilter]   = useState("all");
+  const [isAdmin, setIsAdmin]       = useState(() => { try { return sessionStorage.getItem("wc_admin")==="1"; } catch { return false; } });
+  const [showPin, setShowPin]       = useState(false);
 
   // Auto-save on every state change
   useEffect(() => {
@@ -513,8 +562,10 @@ export default function App() {
         ))}
         {saveFlash==="saved" && <span style={{color:"#3a3",fontSize:11}}>✓ Saved</span>}
         {saveFlash==="error" && <span style={{color:"#a33",fontSize:11}}>Save failed</span>}
-        <button onClick={()=>setShowReset(true)}
-          style={{padding:"5px 12px",background:"#1a0a0a",border:"1px solid #8B1A1A",color:"#d55b5b",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>⟳ Reset</button>
+        {isAdmin
+          ? <button onClick={()=>setShowReset(true)} style={{padding:"5px 12px",background:"#1a0a0a",border:"1px solid #8B1A1A",color:"#d55b5b",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>⟳ Reset</button>
+          : <button onClick={()=>setShowPin(true)} style={{padding:"5px 12px",background:"#1a1a1a",border:"1px solid #333",color:"#888",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>🔐 Admin</button>
+        }
       </div>
     </div>
   );
@@ -551,10 +602,13 @@ export default function App() {
           ))}
         </div>
         <div style={{display:"flex",gap:12}}>
-          <button onClick={generateDraft} style={{flex:1,padding:16,background:"linear-gradient(135deg,#C9A84C,#e8c46a)",color:"#111",border:"none",borderRadius:10,fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:3,cursor:"pointer",boxShadow:"0 4px 24px rgba(201,168,76,0.4)"}}>
-            RANDOMISE DRAFT ORDER →
+          <button onClick={()=>isAdmin?generateDraft():setShowPin(true)} style={{flex:1,padding:16,background:"linear-gradient(135deg,#C9A84C,#e8c46a)",color:"#111",border:"none",borderRadius:10,fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:3,cursor:"pointer",boxShadow:"0 4px 24px rgba(201,168,76,0.4)"}}>
+            {isAdmin?"RANDOMISE DRAFT ORDER →":"🔐 ADMIN LOGIN TO START"}
           </button>
-          <button onClick={()=>setShowReset(true)} style={{padding:"16px 20px",background:"#1a0a0a",border:"1px solid #8B1A1A",color:"#d55b5b",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600}}>⟳ Reset</button>
+          {isAdmin
+            ? <button onClick={()=>setShowReset(true)} style={{padding:"16px 20px",background:"#1a0a0a",border:"1px solid #8B1A1A",color:"#d55b5b",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600}}>⟳ Reset</button>
+            : <button onClick={()=>setShowPin(true)} style={{padding:"16px 20px",background:"#1a1a1a",border:"1px solid #333",color:"#888",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600}}>🔐 Admin</button>
+          }
         </div>
       </div>
       {showReset&&<ResetModal onConfirm={doReset} onCancel={()=>setShowReset(false)}/>}
@@ -698,7 +752,9 @@ export default function App() {
                 </div>
               );
             })}
-            <div style={{color:"#444",fontSize:12,textAlign:"center",marginTop:12}}>Enter results in the Fixtures tab to update scores</div>
+            <div style={{color:"#444",fontSize:12,textAlign:"center",marginTop:12}}>
+              {isAdmin ? "Enter results in the Fixtures tab to update scores" : <span>View only · <button onClick={()=>setShowPin(true)} style={{background:"none",border:"none",color:"#C9A84C",cursor:"pointer",fontSize:12,padding:0}}>Admin login</button></span>}
+            </div>
           </div>
         )}
 
@@ -729,7 +785,7 @@ export default function App() {
                 const hT=teamByName(fix.home), aT=teamByName(fix.away);
                 const resultStr=hasRes?(isGrp?`${res.homeGoals} – ${res.awayGoals}`:`✓ ${res.winner}`):"";
                 return (
-                  <div key={fix.id} onClick={()=>setFixModal(fix)}
+                  <div key={fix.id} onClick={()=>isAdmin?setFixModal(fix):setShowPin(true)}
                     style={{display:"grid",gridTemplateColumns:"80px 1fr auto 1fr 100px",alignItems:"center",gap:8,padding:"10px 14px",background:hasRes?"#0d1a0d":"#111",border:hasRes?"1px solid #1a3a1a":"1px solid #1e1e1e",borderRadius:10,cursor:"pointer",transition:"border-color .15s"}}
                     onMouseEnter={e=>e.currentTarget.style.borderColor="#C9A84C"}
                     onMouseLeave={e=>e.currentTarget.style.borderColor=hasRes?"#1a3a1a":"#1e1e1e"}>
@@ -776,6 +832,7 @@ export default function App() {
           onClose={()=>setFixModal(null)}/>
       )}
       {showReset&&<ResetModal onConfirm={doReset} onCancel={()=>setShowReset(false)}/>}
+      {showPin&&<PinModal onUnlock={()=>{setIsAdmin(true);setShowPin(false);}} onClose={()=>setShowPin(false)}/>}
     </div>
   );
 }
